@@ -4,7 +4,8 @@ compQale = function(
     prop_female = 0.5, 
     start_age = 50, 
     disc_rate = 0.035,
-    utils = "cw"
+    utils = "cw",
+    cycle_length_days = 365.25
     ){
   
   compQaleInternal = function(
@@ -12,16 +13,18 @@ compQale = function(
     prop_female = 0.5, 
     start_age = 50, 
     disc_rate = 0.035,
-    utils = "cw"
+    utils = "cw",
+    cycle_length_days = 365.25
     ){
     
-    ons_df = ons_df[ons_df$age >= start_age,]
+    ons_df = ons_df[ons_df$age >= floor(start_age),] #Lumanity edit - add floor function
     ons_df = ons_df[order(ons_df$age),]
     df_female = ons_df[ons_df$sex == "female",c("age",utils,"lx","dx","mx","ex")]
     df_male = ons_df[ons_df$sex == "male",c("age",utils,"lx","dx","mx","ex")]
     
     df_comp = data.frame(
       age = df_female$age,
+      age_table_index = df_female$age + 1,
       utils = (1-prop_female) * df_male[,utils]  + prop_female * df_female[,utils],
       lx = (1-prop_female) * df_male$lx  + prop_female * df_female$lx,
       dx = (1-prop_female) * df_male$dx  + prop_female * df_female$dx,
@@ -29,6 +32,17 @@ compQale = function(
       ex = (1-prop_female) * df_male$ex  + prop_female * df_female$ex
     )
     
+    ##LUMANITY ADD
+    
+    cycle_length_years <- cycle_length_days / 365.25
+    if (cycle_length_years != 1) {
+        df_comp = CalcByCycle(
+          df = df_comp,
+          cycle_length_days = cycle_length_days,
+          start_age = start_age
+        )
+    }
+
     # person years in year i
     df_comp$Lx = NA
     for(i in 2:nrow(df_comp)){
@@ -37,10 +51,10 @@ compQale = function(
     df_comp$Lx[nrow(df_comp)] = (df_comp$lx[nrow(df_comp)]-df_comp$dx[nrow(df_comp)]) + (0.5 * df_comp$dx[nrow(df_comp)])
     
     # person QALYs in year i
-    df_comp$Yx = df_comp$utils * df_comp$Lx
+    df_comp$Yx = df_comp$utils * df_comp$Lx * cycle_length_years
     
     # apply discounting
-    v_disc <- 1/(1+disc_rate)^(0:(length(df_comp$Yx)-1))
+    v_disc <- 1/(1+disc_rate)^((0:(length(df_comp$Yx)-1))*cycle_length_years)
     df_comp$Yx = df_comp$Yx * v_disc
     
     # remaining person QALYs?
@@ -76,14 +90,16 @@ compQale = function(
     prop_female = 0, 
     start_age = start_age, 
     disc_rate = disc_rate,
-    utils = utils
+    utils = utils,
+    cycle_length_days = cycle_length_days
   )
   qale_female = compQaleInternal(
     ons_df = ons_df,                   
     prop_female = 1, 
     start_age = start_age, 
     disc_rate = disc_rate,
-    utils = utils
+    utils = utils,
+    cycle_length_days = cycle_length_days
   )
   qale_mix = qale_male * (1-prop_female) + qale_female * prop_female
   

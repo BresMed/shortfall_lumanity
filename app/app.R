@@ -13,6 +13,7 @@ mvh_df = read.csv("./data/mvh_df.csv")
 
 # load function to compute life and quality-adjusted life expectancies
 source("./R/compQale.R")
+source("./R/calcByModelCycle.R")
 
 # load modal div content
 source("./R/modalDivs.R")
@@ -90,12 +91,12 @@ ui <- fillPage(
           class = "control-label text-center mb-2  ",
           "Age of the patient population"
         ),
-        sliderInput("start_age", NULL, min = 0, max = 99, value = 0, width = "100%"),
+        numericInput("start_age", NULL, min = 0, max = 99, value = 0, width = "100%"), #SBW changed from slider input (to allow more decimal places)
         div(
           class = "control-label text-center mb-2  mt-4",
           "% female in the patient population"
         ),
-        sliderInput("sex_mix", NULL, min = 0, max = 100, value = 50, width = "100%"),
+        numericInput("sex_mix", NULL, min = 0, max = 100, value = 50, width = "100%"), #SBW changed from slider input (to allow more decimal places)
         
         
         # pop norm
@@ -105,7 +106,7 @@ ui <- fillPage(
           "Select scenario", 
           tags$br(),tags$small("(see",
           actionLink("sources-2", "sources", "data-bs-toggle"="modal", "data-bs-target"="#sourcesModal"),
-          "for details"
+          "for details)"
         )),
         selectizeInput(
           inputId = "utils", 
@@ -133,7 +134,7 @@ ui <- fillPage(
           autonumericInput(
             inputId = "remaining_qalys", 
             label = NULL, 
-            minimumValue = 0, maximumValue = 49,decimalPlaces = 2,
+            minimumValue = 0, maximumValue = 49,decimalPlaces = 5, #increased decimal places
             value = 10, 
             width = "100%"
           ),
@@ -161,8 +162,18 @@ ui <- fillPage(
           actionButton("add_1_disc","+", class = "btn-adj mx-3 flex-fill"), 
         ),
         div(
-          class = "mt-2 ms-5",
-          checkboxInput("no_discount", "no discounting", value = F)
+          class = "mt-2 ms-5 align-items-center justify-content-center",
+          checkboxInput("no_discount", "No discounting", value = F),
+          br(),
+          selectizeInput(
+            inputId = "cycle", 
+            label = "Cycle length", 
+            selected = "annual",
+            choices = list(
+              "Annual" = "annual",
+              "Weekly" = "weekly"
+            )
+          ),
         )
         
       ),
@@ -394,9 +405,11 @@ server <- function(input, output, session){
   
    # add_1 and take_1 buttton logics -----
    observeEvent(input$add_1,{
+     req(input$remaining_qalys)
      updateAutonumericInput(session, "remaining_qalys", value = input$remaining_qalys+1)
    })
    observeEvent(input$take_1,{
+     req(input$remaining_qalys)
      updateAutonumericInput(session, "remaining_qalys", value = input$remaining_qalys-1)
    })
   
@@ -404,9 +417,11 @@ server <- function(input, output, session){
    # discount logic ---------
    # add_1 disc
    observeEvent(input$add_1_disc,{
+     req(input$disc_rate)
      updateAutonumericInput(session, "disc_rate", value = input$disc_rate+0.1)
    })
    observeEvent(input$take_1_disc,{
+     req(input$disc_rate)
      updateAutonumericInput(session, "disc_rate", value = input$disc_rate-0.1)
    })
   
@@ -426,10 +441,9 @@ server <- function(input, output, session){
    })
   
   
-  
    # reset remaining LE based on start age -----
    observeEvent(input$start_age,{
-  
+     req(input$start_age, input$remaining_qalys)
      max_le = 100-(input$start_age)
   
      if(input$remaining_qalys > max_le){
@@ -449,6 +463,8 @@ server <- function(input, output, session){
    dat = reactiveValues()
   
    observe({
+     
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle)
   
      if(input$utils == "mvh"){
        util_df =   mvh_df
@@ -474,14 +490,21 @@ server <- function(input, output, session){
        util_df = ref_df
        utils = "dsu_2014"
      }
-  
+     
+     #cycle length
+     if(input$cycle == "weekly"){
+         cycle_length_days = 7
+       } else {
+         cycle_length_days = 365.25
+       }
   
      dat$res = compQale(
        ons_df = util_df,
        prop_female = input$sex_mix/100,
        start_age = input$start_age,
        disc_rate = input$disc_rate/100,
-       utils = utils
+       utils = utils,
+       cycle_length_days = cycle_length_days
      )
   
      dat$shortfall_abs = dat$res$Qx[1] - input$remaining_qalys
@@ -514,6 +537,9 @@ server <- function(input, output, session){
   
    # HIGH CHARTS ---------
    output$high_chart = renderHighchart({
+     
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle)
+     
      highchart_out() %>%
        hc_exporting(
          enabled = TRUE,
@@ -542,7 +568,8 @@ server <- function(input, output, session){
   
    highchart_out = reactive({
   
-  
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, dat$shortfall_abs, input$cycle)
+    
      if(dat$shortfall_abs < 0){
        p_error = highchart() %>%
          hc_title(
@@ -565,7 +592,7 @@ server <- function(input, output, session){
          percent = c(100 - dat$shortfall_prop*100, dat$shortfall_prop*100),
          col = c("green","gray")
        )
-  
+       
        shortfall_str = paste0(round(dat$shortfall_prop*100,1))
        shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
   
