@@ -17,7 +17,7 @@ compQale = function(
     cycle_length_days = 365.25
     ){
     
-    ons_df = ons_df[ons_df$age >= floor(start_age),] #Lumanity edit - add floor function
+    ons_df = ons_df[ons_df$age >= round(start_age, digits = 0),] #Lumanity edit - add rounding function
     ons_df = ons_df[order(ons_df$age),]
     df_female = ons_df[ons_df$sex == "female",c("age",utils,"lx","dx","mx","ex")]
     df_male = ons_df[ons_df$sex == "male",c("age",utils,"lx","dx","mx","ex")]
@@ -35,13 +35,13 @@ compQale = function(
     ##LUMANITY ADD
     
     cycle_length_years <- cycle_length_days / 365.25
-    if (cycle_length_years != 1) {
-        df_comp = CalcByCycle(
-          df = df_comp,
-          cycle_length_days = cycle_length_days,
-          start_age = start_age
-        )
-    }
+
+    df_comp = CalcByCycle(
+      df = df_comp,
+      cycle_length_days = cycle_length_days,
+      start_age = start_age
+    )
+    
 
     # person years in year i
     df_comp$Lx = NA
