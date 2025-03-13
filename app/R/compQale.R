@@ -5,8 +5,8 @@ compQale = function(
     start_age = 50, 
     disc_rate = 0.035,
     utils = "cw",
-    cycle_length_days = 365.25,
-    disc_adjust = 0
+    cycle_length_days = 365.25, #explicitly defining the cycle length as 1 year
+    disc_adjust = 0 #option to calculate discount rate based on start of year or midpoint
     ){
   
   compQaleInternal = function(
@@ -19,7 +19,7 @@ compQale = function(
     disc_adjust = 0
     ){
     
-    ons_df = ons_df[ons_df$age >= round(start_age, digits = 0),] #Lumanity edit - add rounding function
+    ons_df = ons_df[ons_df$age >= round(start_age, digits = 0),] #starting age might not be an integer
     ons_df = ons_df[order(ons_df$age),]
     df_female = ons_df[ons_df$sex == "female",c("age",utils,"lx","dx","mx","ex")]
     df_male = ons_df[ons_df$sex == "male",c("age",utils,"lx","dx","mx","ex")]
@@ -34,16 +34,7 @@ compQale = function(
       ex = (1-prop_female) * df_male$ex  + prop_female * df_female$ex
     )
     
-    ##LUMANITY ADD
-    
     cycle_length_years <- cycle_length_days / 365.25
-
-    df_comp = CalcByCycle(
-      df = df_comp,
-      cycle_length_days = cycle_length_days,
-      start_age = start_age
-    )
-    
 
     # person years in year i
     df_comp$Lx = NA

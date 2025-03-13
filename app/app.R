@@ -13,7 +13,6 @@ mvh_df = read.csv("./data/mvh_df.csv")
 
 # load function to compute life and quality-adjusted life expectancies
 source("./R/compQale.R")
-source("./R/calcByModelCycle.R")
 
 # load modal div content
 source("./R/modalDivs.R")
@@ -86,17 +85,18 @@ ui <- fillPage(
         class = "d-flex flex-column justify-content-center input-bar",
         
         
-        # pat cohort age
+        # patient cohort age and % female
+        # numeric inputs allow 1 decimal place
         div(
           class = "control-label text-center mb-2  ",
           "Age of the patient population"
         ),
-        autonumericInput("start_age", label = NULL, minimumValue = 0, maximumValue = 99, decimalPlaces = 1, value = 0, width = "100%"), #SBW changed from slider input (to allow more decimal places)
+        autonumericInput("start_age", label = NULL, minimumValue = 0, maximumValue = 99, decimalPlaces = 1, value = 0, width = "100%"),
         div(
           class = "control-label text-center mb-2  mt-4",
           "% female in the patient population"
         ),
-        autonumericInput("sex_mix", label = NULL, minimumValue = 0, maximumValue = 100, decimalPlaces = 1, value = 50, width = "100%"), #SBW changed from slider input (to allow more decimal places)
+        autonumericInput("sex_mix", label = NULL, minimumValue = 0, maximumValue = 100, decimalPlaces = 1, value = 50, width = "100%"),
         
         
         # pop norm
@@ -161,9 +161,11 @@ ui <- fillPage(
           ),
           actionButton("add_1_disc","+", class = "btn-adj mx-3 flex-fill"), 
         ),
+        
+        #new option to calculate discount rate either at start of year or at midpoint
         div(
           class = "control-label text-center mb-2 mt-4",
-          "Discount factor at each cycle"
+          "Discount factor in each year"
         ),
         div(
           class = "d-flex flex-row align-items-center justify-content-center",
@@ -173,7 +175,7 @@ ui <- fillPage(
             label = NULL, 
             selected = "start",
             choices = list(
-              "Calculated at start time" = "start",
+              "Calculated at start of year" = "start",
               "Calculated at midpoint" = "midpoint"
             )
           ),
@@ -181,23 +183,6 @@ ui <- fillPage(
         div(
           class = "mt-2 ms-5 align-items-center justify-content-center",
           checkboxInput("no_discount", "No discounting", value = F),
-        ),
-        div(
-          class = "control-label text-center mb-2 mt-4",
-          "Cycle length"
-        ),
-        div(
-          class = "d-flex flex-row align-items-center justify-content-center",
-          # style = "white-space: nowrap !important;",
-          selectizeInput(
-            inputId = "cycle", 
-            label = NULL, 
-            selected = "annual",
-            choices = list(
-              "Annual" = "annual",
-              "Weekly" = "weekly"
-            )
-          )
         )
         
       ),
@@ -489,7 +474,7 @@ server <- function(input, output, session){
   
    observe({
      
-     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle, input$disc_time)
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$disc_time)
   
      if(input$utils == "mvh"){
        util_df =   mvh_df
@@ -516,19 +501,12 @@ server <- function(input, output, session){
        utils = "dsu_2014"
      }
      
-     #cycle length
-     if(input$cycle == "weekly"){
-         cycle_length_days = 7
-       } else {
-         cycle_length_days = 365.25
-       }
-     
      if(input$disc_time == "start"){
-       #calculate discount rate at start of cycle
+       #calculate discount rate at start of year
        disc_adjust = 0
      }
      else {
-       #calculate discount rate at midpoint of cycle
+       #calculate discount rate at midpoint of year
        disc_adjust = 0.5
      }
   
@@ -538,7 +516,7 @@ server <- function(input, output, session){
        start_age = input$start_age,
        disc_rate = input$disc_rate/100,
        utils = utils,
-       cycle_length_days = cycle_length_days,
+       cycle_length_days = 365.25,
        disc_adjust = disc_adjust
      )
   
@@ -573,7 +551,7 @@ server <- function(input, output, session){
    # HIGH CHARTS ---------
    output$high_chart = renderHighchart({
      
-     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle, input$disc_time)
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$disc_time)
      
      highchart_out() %>%
        hc_exporting(
@@ -603,7 +581,7 @@ server <- function(input, output, session){
   
    highchart_out = reactive({
   
-     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, dat$shortfall_abs, input$cycle, input$disc_time)
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, dat$shortfall_abs, input$disc_time)
     
      if(dat$shortfall_abs < 0){
        p_error = highchart() %>%
