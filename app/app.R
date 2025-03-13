@@ -86,17 +86,18 @@ ui <- fillPage(
         class = "d-flex flex-column justify-content-center input-bar",
         
         
-        # pat cohort age
+        # patient cohort age and % female
+        # numeric inputs allow 1 decimal place
         div(
           class = "control-label text-center mb-2  ",
           "Age of the patient population"
         ),
-        autonumericInput("start_age", label = NULL, minimumValue = 0, maximumValue = 99, decimalPlaces = 1, value = 0, width = "100%"), #SBW changed from slider input (to allow more decimal places)
+        autonumericInput("start_age", label = NULL, minimumValue = 0, maximumValue = 99, decimalPlaces = 1, value = 0, width = "100%"),
         div(
           class = "control-label text-center mb-2  mt-4",
           "% female in the patient population"
         ),
-        autonumericInput("sex_mix", label = NULL, minimumValue = 0, maximumValue = 100, decimalPlaces = 1, value = 50, width = "100%"), #SBW changed from slider input (to allow more decimal places)
+        autonumericInput("sex_mix", label = NULL, minimumValue = 0, maximumValue = 100, decimalPlaces = 1, value = 50, width = "100%"),
         
         
         # pop norm
@@ -161,6 +162,8 @@ ui <- fillPage(
           ),
           actionButton("add_1_disc","+", class = "btn-adj mx-3 flex-fill"), 
         ),
+        
+        #new option to calculate discount rate either at start of cycle or at midpoint
         div(
           class = "control-label text-center mb-2 mt-4",
           "Discount factor at each cycle"
