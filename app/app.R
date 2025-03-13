@@ -91,12 +91,12 @@ ui <- fillPage(
           class = "control-label text-center mb-2  ",
           "Age of the patient population"
         ),
-        numericInput("start_age", NULL, min = 0, max = 99, value = 0, width = "100%"), #SBW changed from slider input (to allow more decimal places)
+        autonumericInput("start_age", label = NULL, minimumValue = 0, maximumValue = 99, decimalPlaces = 1, value = 0, width = "100%"), #SBW changed from slider input (to allow more decimal places)
         div(
           class = "control-label text-center mb-2  mt-4",
           "% female in the patient population"
         ),
-        numericInput("sex_mix", NULL, min = 0, max = 100, value = 50, width = "100%"), #SBW changed from slider input (to allow more decimal places)
+        autonumericInput("sex_mix", label = NULL, minimumValue = 0, maximumValue = 100, decimalPlaces = 1, value = 50, width = "100%"), #SBW changed from slider input (to allow more decimal places)
         
         
         # pop norm
@@ -134,7 +134,7 @@ ui <- fillPage(
           autonumericInput(
             inputId = "remaining_qalys", 
             label = NULL, 
-            minimumValue = 0, maximumValue = 49,decimalPlaces = 5, #increased decimal places
+            minimumValue = 0, maximumValue = 49, decimalPlaces = 2,
             value = 10, 
             width = "100%"
           ),
@@ -162,18 +162,42 @@ ui <- fillPage(
           actionButton("add_1_disc","+", class = "btn-adj mx-3 flex-fill"), 
         ),
         div(
+          class = "control-label text-center mb-2 mt-4",
+          "Discount factor at each cycle"
+        ),
+        div(
+          class = "d-flex flex-row align-items-center justify-content-center",
+          # style = "white-space: nowrap !important;",
+          selectizeInput(
+            inputId = "disc_time",
+            label = NULL, 
+            selected = "start",
+            choices = list(
+              "Calculated at start time" = "start",
+              "Calculated at midpoint" = "midpoint"
+            )
+          ),
+        ),
+        div(
           class = "mt-2 ms-5 align-items-center justify-content-center",
           checkboxInput("no_discount", "No discounting", value = F),
-          br(),
+        ),
+        div(
+          class = "control-label text-center mb-2 mt-4",
+          "Cycle length"
+        ),
+        div(
+          class = "d-flex flex-row align-items-center justify-content-center",
+          # style = "white-space: nowrap !important;",
           selectizeInput(
             inputId = "cycle", 
-            label = "Cycle length", 
+            label = NULL, 
             selected = "annual",
             choices = list(
               "Annual" = "annual",
               "Weekly" = "weekly"
             )
-          ),
+          )
         )
         
       ),
@@ -402,8 +426,7 @@ server <- function(input, output, session){
     )
   })
   
-  
-   # add_1 and take_1 buttton logics -----
+   # add_1 and take_1 button logics -----
    observeEvent(input$add_1,{
      req(input$remaining_qalys)
      updateAutonumericInput(session, "remaining_qalys", value = input$remaining_qalys+1)
@@ -431,11 +454,13 @@ server <- function(input, output, session){
        disable("disc_rate")
        disable("add_1_disc")
        disable("take_1_disc")
+       disable("disc_time")
        updateAutonumericInput(session, "disc_rate", value = 0)
      } else {
        enable("disc_rate")
        enable("add_1_disc")
        enable("take_1_disc")
+       enable("disc_time")
        updateAutonumericInput(session, "disc_rate", value = 3.5)
      }
    })
@@ -464,7 +489,7 @@ server <- function(input, output, session){
   
    observe({
      
-     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle)
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle, input$disc_time)
   
      if(input$utils == "mvh"){
        util_df =   mvh_df
@@ -497,6 +522,15 @@ server <- function(input, output, session){
        } else {
          cycle_length_days = 365.25
        }
+     
+     if(input$disc_time == "start"){
+       #calculate discount rate at start of cycle
+       disc_adjust = 0
+     }
+     else {
+       #calculate discount rate at midpoint of cycle
+       disc_adjust = 0.5
+     }
   
      dat$res = compQale(
        ons_df = util_df,
@@ -504,7 +538,8 @@ server <- function(input, output, session){
        start_age = input$start_age,
        disc_rate = input$disc_rate/100,
        utils = utils,
-       cycle_length_days = cycle_length_days
+       cycle_length_days = cycle_length_days,
+       disc_adjust = disc_adjust
      )
   
      dat$shortfall_abs = dat$res$Qx[1] - input$remaining_qalys
@@ -538,7 +573,7 @@ server <- function(input, output, session){
    # HIGH CHARTS ---------
    output$high_chart = renderHighchart({
      
-     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle)
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$cycle, input$disc_time)
      
      highchart_out() %>%
        hc_exporting(
@@ -568,7 +603,7 @@ server <- function(input, output, session){
   
    highchart_out = reactive({
   
-     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, dat$shortfall_abs, input$cycle)
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, dat$shortfall_abs, input$cycle, input$disc_time)
     
      if(dat$shortfall_abs < 0){
        p_error = highchart() %>%

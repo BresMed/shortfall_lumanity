@@ -188,7 +188,7 @@ div(
           
           div(
             class ="px-5 my-1",
-            "ONS (2021). National Life Tables, England, 1980-1982 to 2017-2019.", 
+            "ONS (2021). National Life Tables, England, 1980-1982 to 2017-2019. Version published 23 September 2021.", 
             a(href = "https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/lifeexpectancies/datasets/nationallifetablesenglandreferencetables", "link", "target" = "_blank")
           ),
           

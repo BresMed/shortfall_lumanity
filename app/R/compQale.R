@@ -5,7 +5,8 @@ compQale = function(
     start_age = 50, 
     disc_rate = 0.035,
     utils = "cw",
-    cycle_length_days = 365.25
+    cycle_length_days = 365.25,
+    disc_adjust = 0
     ){
   
   compQaleInternal = function(
@@ -14,7 +15,8 @@ compQale = function(
     start_age = 50, 
     disc_rate = 0.035,
     utils = "cw",
-    cycle_length_days = 365.25
+    cycle_length_days = 365.25,
+    disc_adjust = 0
     ){
     
     ons_df = ons_df[ons_df$age >= round(start_age, digits = 0),] #Lumanity edit - add rounding function
@@ -54,7 +56,7 @@ compQale = function(
     df_comp$Yx = df_comp$utils * df_comp$Lx * cycle_length_years
     
     # apply discounting
-    v_disc <- 1/(1+disc_rate)^((0:(length(df_comp$Yx)-1))*cycle_length_years)
+    v_disc <- 1/(1+disc_rate)^((0:(length(df_comp$Yx)-1)+disc_adjust)*cycle_length_years)
     df_comp$Yx = df_comp$Yx * v_disc
     
     # remaining person QALYs?
@@ -91,7 +93,8 @@ compQale = function(
     start_age = start_age, 
     disc_rate = disc_rate,
     utils = utils,
-    cycle_length_days = cycle_length_days
+    cycle_length_days = cycle_length_days,
+    disc_adjust = disc_adjust
   )
   qale_female = compQaleInternal(
     ons_df = ons_df,                   
@@ -99,7 +102,8 @@ compQale = function(
     start_age = start_age, 
     disc_rate = disc_rate,
     utils = utils,
-    cycle_length_days = cycle_length_days
+    cycle_length_days = cycle_length_days,
+    disc_adjust = disc_adjust
   )
   qale_mix = qale_male * (1-prop_female) + qale_female * prop_female
   
