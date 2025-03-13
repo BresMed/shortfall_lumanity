@@ -85,17 +85,18 @@ ui <- fillPage(
         class = "d-flex flex-column justify-content-center input-bar",
         
         
-        # pat cohort age
+        # patient cohort age and % female
+        # numeric inputs allow 1 decimal place
         div(
           class = "control-label text-center mb-2  ",
           "Age of the patient population"
         ),
-        sliderInput("start_age", NULL, min = 0, max = 99, value = 0, width = "100%"),
+        autonumericInput("start_age", label = NULL, minimumValue = 0, maximumValue = 99, decimalPlaces = 1, value = 0, width = "100%"),
         div(
           class = "control-label text-center mb-2  mt-4",
           "% female in the patient population"
         ),
-        sliderInput("sex_mix", NULL, min = 0, max = 100, value = 50, width = "100%"),
+        autonumericInput("sex_mix", label = NULL, minimumValue = 0, maximumValue = 100, decimalPlaces = 1, value = 50, width = "100%"),
         
         
         # pop norm
@@ -105,7 +106,7 @@ ui <- fillPage(
           "Select scenario", 
           tags$br(),tags$small("(see",
           actionLink("sources-2", "sources", "data-bs-toggle"="modal", "data-bs-target"="#sourcesModal"),
-          "for details"
+          "for details)"
         )),
         selectizeInput(
           inputId = "utils", 
@@ -133,7 +134,7 @@ ui <- fillPage(
           autonumericInput(
             inputId = "remaining_qalys", 
             label = NULL, 
-            minimumValue = 0, maximumValue = 49,decimalPlaces = 2,
+            minimumValue = 0, maximumValue = 49, decimalPlaces = 2,
             value = 10, 
             width = "100%"
           ),
@@ -160,9 +161,28 @@ ui <- fillPage(
           ),
           actionButton("add_1_disc","+", class = "btn-adj mx-3 flex-fill"), 
         ),
+        
+        #new option to calculate discount rate either at start of year or at midpoint
         div(
-          class = "mt-2 ms-5",
-          checkboxInput("no_discount", "no discounting", value = F)
+          class = "control-label text-center mb-2 mt-4",
+          "Discount factor in each year"
+        ),
+        div(
+          class = "d-flex flex-row align-items-center justify-content-center",
+          # style = "white-space: nowrap !important;",
+          selectizeInput(
+            inputId = "disc_time",
+            label = NULL, 
+            selected = "start",
+            choices = list(
+              "Calculated at start of year" = "start",
+              "Calculated at midpoint" = "midpoint"
+            )
+          ),
+        ),
+        div(
+          class = "mt-2 ms-5 align-items-center justify-content-center",
+          checkboxInput("no_discount", "No discounting", value = F),
         )
         
       ),
@@ -391,12 +411,13 @@ server <- function(input, output, session){
     )
   })
   
-  
-   # add_1 and take_1 buttton logics -----
+   # add_1 and take_1 button logics -----
    observeEvent(input$add_1,{
+     req(input$remaining_qalys)
      updateAutonumericInput(session, "remaining_qalys", value = input$remaining_qalys+1)
    })
    observeEvent(input$take_1,{
+     req(input$remaining_qalys)
      updateAutonumericInput(session, "remaining_qalys", value = input$remaining_qalys-1)
    })
   
@@ -404,9 +425,11 @@ server <- function(input, output, session){
    # discount logic ---------
    # add_1 disc
    observeEvent(input$add_1_disc,{
+     req(input$disc_rate)
      updateAutonumericInput(session, "disc_rate", value = input$disc_rate+0.1)
    })
    observeEvent(input$take_1_disc,{
+     req(input$disc_rate)
      updateAutonumericInput(session, "disc_rate", value = input$disc_rate-0.1)
    })
   
@@ -416,20 +439,21 @@ server <- function(input, output, session){
        disable("disc_rate")
        disable("add_1_disc")
        disable("take_1_disc")
+       disable("disc_time")
        updateAutonumericInput(session, "disc_rate", value = 0)
      } else {
        enable("disc_rate")
        enable("add_1_disc")
        enable("take_1_disc")
+       enable("disc_time")
        updateAutonumericInput(session, "disc_rate", value = 3.5)
      }
    })
   
   
-  
    # reset remaining LE based on start age -----
    observeEvent(input$start_age,{
-  
+     req(input$start_age, input$remaining_qalys)
      max_le = 100-(input$start_age)
   
      if(input$remaining_qalys > max_le){
@@ -449,6 +473,8 @@ server <- function(input, output, session){
    dat = reactiveValues()
   
    observe({
+     
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$disc_time)
   
      if(input$utils == "mvh"){
        util_df =   mvh_df
@@ -474,14 +500,24 @@ server <- function(input, output, session){
        util_df = ref_df
        utils = "dsu_2014"
      }
-  
+     
+     if(input$disc_time == "start"){
+       #calculate discount rate at start of year
+       disc_adjust = 0
+     }
+     else {
+       #calculate discount rate at midpoint of year
+       disc_adjust = 0.5
+     }
   
      dat$res = compQale(
        ons_df = util_df,
        prop_female = input$sex_mix/100,
        start_age = input$start_age,
        disc_rate = input$disc_rate/100,
-       utils = utils
+       utils = utils,
+       cycle_length_days = 365.25,
+       disc_adjust = disc_adjust
      )
   
      dat$shortfall_abs = dat$res$Qx[1] - input$remaining_qalys
@@ -514,6 +550,9 @@ server <- function(input, output, session){
   
    # HIGH CHARTS ---------
    output$high_chart = renderHighchart({
+     
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, input$disc_time)
+     
      highchart_out() %>%
        hc_exporting(
          enabled = TRUE,
@@ -542,7 +581,8 @@ server <- function(input, output, session){
   
    highchart_out = reactive({
   
-  
+     req(input$utils, input$sex_mix, input$start_age, input$disc_rate, dat$shortfall_abs, input$disc_time)
+    
      if(dat$shortfall_abs < 0){
        p_error = highchart() %>%
          hc_title(
@@ -565,7 +605,7 @@ server <- function(input, output, session){
          percent = c(100 - dat$shortfall_prop*100, dat$shortfall_prop*100),
          col = c("green","gray")
        )
-  
+       
        shortfall_str = paste0(round(dat$shortfall_prop*100,1))
        shortfall_str = paste0("Proportional<br>QALY<br>shortfall:<br><b>",shortfall_str,"%</b>")
   
