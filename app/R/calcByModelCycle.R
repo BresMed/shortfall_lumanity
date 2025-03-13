@@ -1,3 +1,5 @@
+### LUMANITY NEW
+
 CalcByCycle = function(
   df = df_comp,
   cycle_length_days = cycle_length_days,
