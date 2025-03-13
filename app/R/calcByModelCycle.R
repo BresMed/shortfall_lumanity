@@ -1,4 +1,4 @@
-### LUMANITY NEW
+###LUMANITY NEW
 
 CalcByCycle = function(
   df = df_comp,
