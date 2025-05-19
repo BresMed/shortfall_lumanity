@@ -1,3 +1,16 @@
+## Adaptation of QALY Shortfall Calculator
+
+This repository is an adaptation of the [QALY Shortfall Calculator online tool](https://shiny.york.ac.uk/shortfall), forked from [bitowaqr/shortfall](https://github.com/bitowaqr/shortfall). This adaptation includes extra options for testing alignment with Lumanity models:
+
+* Discount rates applied at midpoint rather than start of year
+* One extra decimal point for entering starting age and % female
+
+A previous development version of this adaptation tested options for turning off the half cycle correction and using a weekly rather than annual cycle length.
+
+The reference list has also been updated to clarify that the [2017-2019 England and Wales life table data](https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/lifeexpectancies/datasets/nationallifetablesenglandandwalesreferencetables/current) in the app are from the version released on 23 September 2021 (not the latest release).
+
+## Original QALY Shortfall Calculator repository notes
+
 This repository contains the R source code for the publication:
 
 ### McNamara S, Schneider PP, Love-Koh J, Doran T, Gutacker N. **Quality-Adjusted Life Expectancy Norms for the English Population**. Value in Health. 2022 Aug 12. [https://doi.org/10.1016/j.jval.2022.07.005](https://doi.org/10.1016/j.jval.2022.07.005)
